@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.salary import Salary
 from app.models.user import User
+from app.schemas.payroll import PayrollCalculate, PayrollCreate
 from app.services.attendance_service import get_user_from_token
 from app.services.salary_service import build_salary_record, calculate_salary_components
 
@@ -42,6 +43,45 @@ def list_payroll(authorization: str | None = Header(default=None, alias="Authori
         }
         for record in records
     ]
+
+
+@router.post("")
+def create_payroll(
+    payload: PayrollCreate,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
+):
+    current_user = get_user_from_token(db, _token_from_header(authorization))
+    target_user_id = payload.user_id or current_user.id
+    if payload.user_id and current_user.role != "hr" and not current_user.is_company_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="HR access required")
+
+    if payload.user_id:
+        target_user = db.query(User).filter(User.id == payload.user_id, User.company_id == current_user.company_id).first()
+        if not target_user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Target user not found")
+    else:
+        target_user = current_user
+
+    salary_record = build_salary_record(target_user.id, payload.monthly_salary, payload.month)
+    db.add(salary_record)
+    db.commit()
+    db.refresh(salary_record)
+    return {
+        "message": "Payroll record created",
+        "salary_id": salary_record.id,
+    }
+
+
+@router.post("/calculate")
+def calculate_payroll(
+    payload: PayrollCalculate,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
+):
+    _ = get_user_from_token(db, _token_from_header(authorization))
+    components = calculate_salary_components(payload.monthly_salary)
+    return {"salary_components": {key: str(value) for key, value in components.items()}}
 
 
 @router.put("/{salary_id}")

@@ -67,11 +67,21 @@ def _find_user_by_login_or_email(db: Session, login: str) -> User | None:
     )
 
 
+@router.get("/company/status")
+def company_status(db: Session = Depends(get_db)):
+    company_exists = db.query(Company).count() > 0
+    return {"company_exists": company_exists}
+
+
 @router.post("/register")
 @router.post("/register-company")
 def register_company(payload: CompanyRegister, db: Session = Depends(get_db)):
     if payload.password != payload.confirm_password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
+
+    existing_company = db.query(Company).first()
+    if existing_company:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Company already registered")
 
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
