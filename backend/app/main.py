@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.api.auth import router as auth_router
 from app.api.attendance import router as attendance_router
+from app.api.company import router as company_router
 from app.api.dashboard import router as dashboard_router
 from app.api.payroll import router as payroll_router
 from app.api.users import router as users_router
@@ -18,6 +19,7 @@ app = FastAPI(title="HRMS")
 
 app.include_router(auth_router)
 app.include_router(attendance_router)
+app.include_router(company_router)
 app.include_router(dashboard_router)
 app.include_router(payroll_router)
 app.include_router(users_router)

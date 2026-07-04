@@ -73,6 +73,10 @@ def register_company(payload: CompanyRegister, db: Session = Depends(get_db)):
     if payload.password != payload.confirm_password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
 
+    existing_company = db.query(Company).first()
+    if existing_company:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Company already registered")
+
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
