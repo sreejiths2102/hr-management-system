@@ -125,6 +125,32 @@ export const api = {
   },
 
   // Attendance
+  getMyAttendance: async () => {
+    const res = await fetch(`${API_BASE_URL}/attendance`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  checkInAttendance: async () => {
+    const res = await fetch(`${API_BASE_URL}/attendance/check-in`, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  checkOutAttendance: async (breakMinutes = 0) => {
+    const url = new URL(`${API_BASE_URL}/attendance/check-out`);
+    if (breakMinutes) url.searchParams.set('break_minutes', String(breakMinutes));
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
   getAllAttendance: async () => {
     const res = await fetch(`${API_BASE_URL}/attendance/all`, {
       method: 'GET',
@@ -134,6 +160,23 @@ export const api = {
   },
 
   // Leave / Time-Off
+  listMyLeaveRequests: async () => {
+    const res = await fetch(`${API_BASE_URL}/leave`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  applyLeave: async (payload) => {
+    const res = await fetch(`${API_BASE_URL}/leave`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    });
+    return handleResponse(res);
+  },
+
   listLeaveRequests: async () => {
     const res = await fetch(`${API_BASE_URL}/leave`, {
       method: 'GET',
@@ -163,6 +206,14 @@ export const api = {
   },
 
   // Payroll
+  getMyPayroll: async () => {
+    const res = await fetch(`${API_BASE_URL}/payroll`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
   getPayroll: async () => {
     const res = await fetch(`${API_BASE_URL}/payroll`, {
       method: 'GET',

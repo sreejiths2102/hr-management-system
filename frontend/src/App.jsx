@@ -10,11 +10,15 @@ import CompanySettings from './components/CompanySettings';
 import Reports from './components/Reports';
 import AddUserModal from './components/AddUserModal';
 import EmployeeDetailsModal from './components/EmployeeDetailsModal';
+import EmployeeAttendanceView from './components/EmployeeAttendanceView';
+import EmployeeLeaveView from './components/EmployeeLeaveView';
+import EmployeePayrollView from './components/EmployeePayrollView';
 import { api } from './services/api';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentTab, setCurrentTab] = useState('dashboard');
+  const [employeeSubTab, setEmployeeSubTab] = useState('attendance');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   
@@ -38,6 +42,8 @@ export default function App() {
     api.logout();
     setCurrentUser(null);
   };
+
+  const isHrOrAdmin = currentUser?.role === 'hr' || currentUser?.is_company_admin;
 
   const triggerRefresh = () => {
     setRefreshTrigger((prev) => prev + 1);
@@ -87,15 +93,27 @@ export default function App() {
           )}
 
           {currentTab === 'attendance' && (
-            <AttendanceManager currentUser={currentUser} />
+            isHrOrAdmin ? (
+              <AttendanceManager currentUser={currentUser} />
+            ) : (
+              <EmployeeAttendanceView currentUser={currentUser} />
+            )
           )}
 
           {currentTab === 'timeoff' && (
-            <LeaveManager currentUser={currentUser} />
+            isHrOrAdmin ? (
+              <LeaveManager currentUser={currentUser} />
+            ) : (
+              <EmployeeLeaveView currentUser={currentUser} />
+            )
           )}
 
           {currentTab === 'payroll' && (
-            <PayrollManager currentUser={currentUser} />
+            isHrOrAdmin ? (
+              <PayrollManager currentUser={currentUser} />
+            ) : (
+              <EmployeePayrollView currentUser={currentUser} />
+            )
           )}
 
           {currentTab === 'reports' && (
