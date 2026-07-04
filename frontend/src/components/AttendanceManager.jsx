@@ -51,7 +51,7 @@ export default function AttendanceManager({ currentUser }) {
       <div className="panel-header">
         <h3 className="panel-title">Employee Attendance Log</h3>
         <button type="button" className="btn btn-secondary" onClick={fetchData}>
-          🔄 Refresh
+          Refresh
         </button>
       </div>
 

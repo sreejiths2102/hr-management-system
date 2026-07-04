@@ -69,7 +69,6 @@ export default function DashboardHome({
       {/* Stat Cards Row */}
       <div className="dashboard-grid">
         <div className="stat-card glass">
-          <div className="stat-icon purple">👥</div>
           <div className="stat-content">
             <span className="stat-value">{data?.total_users || 0}</span>
             <span className="stat-label">Total Employees</span>
@@ -77,7 +76,6 @@ export default function DashboardHome({
         </div>
 
         <div className="stat-card glass">
-          <div className="stat-icon green">✅</div>
           <div className="stat-content">
             <span className="stat-value">{data?.present || 0}</span>
             <span className="stat-label">Present Today</span>
@@ -85,7 +83,6 @@ export default function DashboardHome({
         </div>
 
         <div className="stat-card glass">
-          <div className="stat-icon orange">✈️</div>
           <div className="stat-content">
             <span className="stat-value">{data?.leave || 0}</span>
             <span className="stat-label">On Leave</span>
@@ -93,7 +90,6 @@ export default function DashboardHome({
         </div>
 
         <div className="stat-card glass" style={{ cursor: 'pointer' }} onClick={() => setCurrentTab('timeoff')}>
-          <div className="stat-icon red">⏳</div>
           <div className="stat-content">
             <span className="stat-value">{data?.pending_leaves || 0}</span>
             <span className="stat-label">Pending Leaves</span>
@@ -128,7 +124,7 @@ export default function DashboardHome({
             />
           </div>
           <button type="button" className="btn btn-primary" onClick={onAddUserClick}>
-            <span>➕</span> New User
+            New User
           </button>
         </div>
 

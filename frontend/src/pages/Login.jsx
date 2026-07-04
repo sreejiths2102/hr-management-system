@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import { Lock, ArrowRight } from 'lucide-react';
 
 const BACKEND_URL = 'http://127.0.0.1:8000';
 
@@ -82,7 +81,6 @@ const Login = () => {
             <div className="form-group">
               <label>Password</label>
               <div className="input-with-icon">
-                <Lock className="input-icon" size={20} />
                 <input
                   type="password"
                   value={password}
@@ -95,10 +93,7 @@ const Login = () => {
 
             <button type="submit" className="btn-primary full-width" disabled={isLoading}>
               {isLoading ? 'Signing in...' : (
-                <>
-                  Sign In
-                  <ArrowRight size={18} />
-                </>
+                'Sign In'
               )}
             </button>
           </form>

@@ -21,15 +21,51 @@ export default function Login({ onLoginSuccess }) {
   // Registration success credentials popup state
   const [createdCredentials, setCreatedCredentials] = useState(null);
 
+  // Force password reset state — set when must_change_password = true
+  const [pendingReset, setPendingReset] = useState(null); // { loginId, user }
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [resetting, setResetting] = useState(false);
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
     try {
       const data = await api.login(loginId, password);
+
+      if (data.must_change_password) {
+        // Intercept — show forced password reset screen
+        setPendingReset({ loginId, user: data.user });
+      } else {
+        onLoginSuccess(data.user);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleForceResetSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (newPassword.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setResetting(true);
+    try {
+      await api.changePassword(pendingReset.loginId, password, newPassword);
+      // Password changed — now log in with new credentials and proceed
+      const data = await api.login(pendingReset.loginId, newPassword);
       onLoginSuccess(data.user);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -72,6 +108,97 @@ export default function Login({ onLoginSuccess }) {
     alert('Copied to clipboard!');
   };
 
+  // ── Force Password Reset Screen ──────────────────────────────────────────
+  if (pendingReset) {
+    return (
+      <div className="auth-page">
+        <div className="auth-container glass">
+          <div className="auth-header">
+            <div className="auth-logo">Angeleena</div>
+            <div className="auth-subtitle">HR Management System</div>
+          </div>
+
+          {/* Warning Banner */}
+          <div style={{
+            padding: '14px 16px',
+            borderRadius: '10px',
+            background: 'rgba(245,158,11,0.1)',
+            border: '1px solid rgba(245,158,11,0.3)',
+            marginBottom: '20px',
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'flex-start',
+          }}>
+            <span style={{ fontSize: '20px', flexShrink: 0, fontWeight: '700', color: 'var(--warning)' }}>!</span>
+            <div>
+              <div style={{ fontWeight: '700', color: 'var(--warning)', marginBottom: '4px', fontSize: '14px' }}>
+                Password Reset Required
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                You're logging in with a temporary password. For your security, please set a new personal password before continuing.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '18px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(139,92,246,0.08)', fontSize: '13px', color: 'var(--text-secondary)' }}>
+            Logged in as <strong style={{ color: 'var(--primary)' }}>{pendingReset.loginId}</strong>
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <form onSubmit={handleForceResetSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div className="form-group">
+              <label htmlFor="newPassword">New Password</label>
+              <input
+                id="newPassword"
+                type="password"
+                required
+                placeholder="At least 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="confirmNewPassword">Confirm New Password</label>
+              <input
+                id="confirmNewPassword"
+                type="password"
+                required
+                placeholder="Re-enter new password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+              />
+            </div>
+
+            {/* Password strength hint */}
+            {newPassword.length > 0 && (
+              <div style={{ marginBottom: '8px' }}>
+                {['At least 6 characters', 'Passwords match'].map((hint, i) => {
+                  const met = i === 0 ? newPassword.length >= 6 : newPassword === confirmNewPassword;
+                  return (
+                    <div key={hint} style={{ fontSize: '12px', color: met ? 'var(--success)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                      <span>{met ? '✅' : '○'}</span> {hint}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn btn-primary btn-block"
+              disabled={resetting}
+              style={{ marginTop: '8px' }}
+            >
+            {resetting ? 'Updating Password...' : 'Set New Password & Continue'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Normal Login / Register Screen ───────────────────────────────────────
   return (
     <div className="auth-page">
       <div className="auth-container glass">
@@ -112,7 +239,7 @@ export default function Login({ onLoginSuccess }) {
                 setCreatedCredentials(null);
               }}
             >
-              Copy Login ID & Go to Login
+              Copy Login ID &amp; Go to Login
             </button>
           </div>
         )}
@@ -120,12 +247,12 @@ export default function Login({ onLoginSuccess }) {
         {!isRegistering ? (
           <form onSubmit={handleLoginSubmit}>
             <div className="form-group">
-              <label htmlFor="loginId">Login ID or Email</label>
+              <label htmlFor="loginId">Login ID</label>
               <input
                 id="loginId"
                 type="text"
                 required
-                placeholder="ANG-hr-1 or hr@company.com"
+                placeholder=""
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
               />

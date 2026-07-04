@@ -13,6 +13,8 @@ import EmployeeDetailsModal from './components/EmployeeDetailsModal';
 import EmployeeAttendanceView from './components/EmployeeAttendanceView';
 import EmployeeLeaveView from './components/EmployeeLeaveView';
 import EmployeePayrollView from './components/EmployeePayrollView';
+import EmployeeDashboard from './components/EmployeeDashboard';
+import EmployeeProfileView from './components/EmployeeProfileView';
 import { api } from './services/api';
 
 export default function App() {
@@ -53,6 +55,14 @@ export default function App() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
+  // Page title helper
+  const getPageTitle = () => {
+    if (currentTab === 'dashboard') return isHrOrAdmin ? 'Dashboard Summary' : 'My Dashboard';
+    if (currentTab === 'timeoff') return 'Leave Requests';
+    if (currentTab === 'profile') return 'My Profile';
+    return `${currentTab} Management`;
+  };
+
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
@@ -67,9 +77,7 @@ export default function App() {
       <main className="main-content">
         <header className="content-header">
           <div className="page-title">
-            <h1 style={{ textTransform: 'capitalize' }}>
-              {currentTab === 'dashboard' ? 'Dashboard Summary' : currentTab === 'timeoff' ? 'Time Off Requests' : `${currentTab} Management`}
-            </h1>
+            <h1 style={{ textTransform: 'capitalize' }}>{getPageTitle()}</h1>
             <p>Welcome back, {currentUser.name}</p>
           </div>
         </header>
@@ -77,11 +85,19 @@ export default function App() {
         {/* Tab Router Content */}
         <div key={refreshTrigger} style={{ flexGrow: 1 }}>
           {currentTab === 'dashboard' && (
-            <DashboardHome
-              setCurrentTab={setCurrentTab}
-              onAddUserClick={() => setIsAddModalOpen(true)}
-              onEmployeeClick={(id) => setSelectedEmployeeId(id)}
-            />
+            isHrOrAdmin ? (
+              <DashboardHome
+                setCurrentTab={setCurrentTab}
+                onAddUserClick={() => setIsAddModalOpen(true)}
+                onEmployeeClick={(id) => setSelectedEmployeeId(id)}
+              />
+            ) : (
+              <EmployeeDashboard
+                currentUser={currentUser}
+                setCurrentTab={setCurrentTab}
+                onLogout={handleLogout}
+              />
+            )
           )}
 
           {currentTab === 'employees' && (
@@ -114,6 +130,13 @@ export default function App() {
             ) : (
               <EmployeePayrollView currentUser={currentUser} />
             )
+          )}
+
+          {currentTab === 'profile' && !isHrOrAdmin && (
+            <EmployeeProfileView
+              currentUser={currentUser}
+              onProfileUpdate={triggerRefresh}
+            />
           )}
 
           {currentTab === 'reports' && (

@@ -64,7 +64,7 @@ export default function LeaveManager({ currentUser }) {
         <div className="panel-header">
           <h3 className="panel-title">Pending Leave Requests</h3>
           <button type="button" className="btn btn-secondary" onClick={fetchData}>
-            🔄 Refresh
+            Refresh
           </button>
         </div>
 

@@ -16,7 +16,7 @@ if DATABASE_URL:
         parsed_url = make_url(DATABASE_URL)
         if parsed_url.host:
             socket.gethostbyname(parsed_url.host)
-        engine = create_engine(DATABASE_URL)
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
     except Exception as exc:  # noqa: BLE001
         fallback_db = Path(__file__).resolve().parents[2] / "hrms.sqlite3"
         engine = create_engine(f"sqlite:///{fallback_db}", connect_args={"check_same_thread": False})

@@ -92,7 +92,7 @@ export default function Employees({ currentUser, onEmployeeClick, onAddUserClick
             </select>
 
             <button type="button" className="btn btn-primary" onClick={onAddUserClick}>
-              ➕ Add User
+              Add User
             </button>
           </div>
         </div>

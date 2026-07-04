@@ -74,7 +74,7 @@ export default function PayrollManager({ currentUser }) {
         <div className="panel-header">
           <h3 className="panel-title">Payroll Management</h3>
           <button type="button" className="btn btn-secondary" onClick={fetchData}>
-            🔄 Refresh
+            Refresh
           </button>
         </div>
 
@@ -120,7 +120,7 @@ export default function PayrollManager({ currentUser }) {
                         style={{ padding: '6px 12px', fontSize: '13px' }}
                         onClick={() => handleEditClick(pay)}
                       >
-                        ✏️ Adjust
+                        Adjust
                       </button>
                     </td>
                   </tr>

@@ -63,7 +63,7 @@ export default function AddUserModal({ currentUser, onClose, onSuccess }) {
         {createdCredentials ? (
           <div className="credentials-box" style={{ padding: '24px' }}>
             <h4 style={{ color: 'var(--success)', fontWeight: '600', marginBottom: '12px' }}>
-              🎉 Employee Created Successfully!
+              Employee Created Successfully!
             </h4>
             <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
               A new employee profile has been added. Give the credentials below to the employee:

@@ -24,13 +24,26 @@ def hr_dashboard(authorization: str | None = Header(default=None, alias="Authori
     if user_role != "hr" and not is_company_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="HR access required")
 
-    users = db.query(User).filter(User.company_id == current_user.company_id, User.is_active == True).all()  # noqa: E712
+    users = db.query(User).filter(User.company_id == current_user.company_id, User.is_active.is_(True)).all()
     total_users = len(users)
     present_count = 0
     leave_count = 0
     absent_count = 0
+
+    user_ids = [user.id for user in users]
+    today = date.today()
+
+    # Fetch all relevant data in fewer queries
+    attendances = db.query(Attendance).filter(Attendance.user_id.in_(user_ids), Attendance.date == today).all()
+    leaves = db.query(LeaveRequest).filter(LeaveRequest.user_id.in_(user_ids), LeaveRequest.status == "Approved", LeaveRequest.start_date <= today, LeaveRequest.end_date >= today).all()
+
+    attendance_by_user = {att.user_id: att for att in attendances}
+    leave_by_user = {leave.user_id for leave in leaves}
+
+    user_statuses = {}
     for user in users:
-        status_value = get_today_status(db, user)
+        status_value = get_today_status(db, user, target_date=today, preloaded_attendance=attendance_by_user.get(user.id), preloaded_leave=user.id in leave_by_user)
+        user_statuses[user.id] = status_value
         normalized_status = status_value.lower()
         if normalized_status == "leave":
             leave_count += 1
@@ -38,12 +51,6 @@ def hr_dashboard(authorization: str | None = Header(default=None, alias="Authori
             present_count += 1
         else:
             absent_count += 1
-
-        attendance = (
-            db.query(Attendance)
-            .filter(Attendance.user_id == user.id, Attendance.date == date.today())
-            .first()
-        )
 
     pending_leaves = (
         db.query(LeaveRequest)
@@ -63,7 +70,7 @@ def hr_dashboard(authorization: str | None = Header(default=None, alias="Authori
                 "name": user.name,
                 "designation": user.designation,
                 "department": user.department,
-                "status": get_today_status(db, user),
+                "status": user_statuses.get(user.id),
             }
             for user in users
         ],

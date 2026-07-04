@@ -1,22 +1,91 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import cast
 
 from app.core.security import hash_password
 from app.db.database import get_db
 from app.models.company import Company
+from app.models.salary import Salary
 from app.models.user import User
-from app.schemas.user import CreateUser, UpdateUser, UserListItem
+from app.schemas.user import CreateUser, UpdateOwnProfile, UpdateUser, UserListItem
+from app.services.attendance_service import get_user_from_token
 from app.services.id_generator import generate_employee_id, generate_login_id, generate_password
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-def _get_company(db: Session, company_id: int) -> Company:
-    company = db.query(Company).filter(Company.id == company_id).first()
-    if not company:
+def _token_from_header(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+    return authorization.split(" ", 1)[1].strip()
+
+
+@router.get("/me")
+def get_my_profile(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
+):
+    """Authenticated employee fetches their own full profile + latest salary."""
+    current_user = get_user_from_token(db, _token_from_header(authorization))
+
+    latest_salary = (
+        db.query(Salary)
+        .filter(Salary.user_id == current_user.id)
+        .order_by(Salary.created_at.desc())
+        .first()
+    )
+
+    return {
+        "id": cast(int, current_user.id),
+        "company_id": cast(int, current_user.company_id),
+        "employee_id": cast(str, current_user.employee_id),
+        "login_id": cast(str, current_user.login_id),
+        "name": cast(str, current_user.name),
+        "email": cast(str, current_user.email),
+        "phone": cast(str | None, current_user.phone),
+        "department": cast(str | None, current_user.department),
+        "designation": cast(str | None, current_user.designation),
+        "joining_date": current_user.joining_date,
+        "salary": current_user.salary,
+        "profile_picture": cast(str | None, current_user.profile_picture),
+        "address": cast(str | None, current_user.address),
+        "role": cast(str, current_user.role),
+        "is_company_admin": cast(bool, current_user.is_company_admin),
+        "latest_salary": {
+            "monthly_salary": str(latest_salary.monthly_salary),
+            "basic": str(latest_salary.basic),
+            "hra": str(latest_salary.hra),
+            "allowance": str(latest_salary.allowance),
+            "pf": str(latest_salary.pf),
+            "professional_tax": str(latest_salary.professional_tax),
+            "net_salary": str(latest_salary.net_salary),
+            "month": latest_salary.month,
+        } if latest_salary else None,
+    }
+
+
+@router.put("/me")
+def update_my_profile(
+    payload: UpdateOwnProfile,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
+):
+    """Authenticated employee updates their own limited profile fields."""
+    current_user = get_user_from_token(db, _token_from_header(authorization))
+
+    for field_name, value in payload.model_dump(exclude_unset=True).items():
+        setattr(current_user, field_name, value)
+
+    db.commit()
+    db.refresh(current_user)
+    return {"message": "Profile updated successfully"}
+
+
+def _get_company_code(db: Session, company_id: int) -> str:
+    company_code = db.query(Company.company_code).filter(Company.id == company_id).scalar()
+    if not company_code:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
-    return company
+    return company_code
 
 
 def _next_employee_serial(db: Session, company_id: int) -> int:
@@ -25,15 +94,13 @@ def _next_employee_serial(db: Session, company_id: int) -> int:
 
 @router.post("")
 def create_user(payload: CreateUser, db: Session = Depends(get_db)):
-    _get_company(db, payload.company_id)
+    company_code = _get_company_code(db, payload.company_id)
 
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
     employee_serial = _next_employee_serial(db, payload.company_id)
     employee_id = generate_employee_id(employee_serial)
-    company = db.query(Company).filter(Company.id == payload.company_id).first()
-    company_code = company.company_code if company else ""
     login_id = generate_login_id(company_code, payload.name, employee_serial)
     temporary_password = generate_password()
 
@@ -76,8 +143,8 @@ def list_users(
     department: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    _get_company(db, company_id)
-    query = db.query(User).filter(User.company_id == company_id, User.is_active == True)  # noqa: E712
+    _get_company_code(db, company_id)  # Efficiently check if company exists
+    query = db.query(User).filter(User.company_id == company_id, User.is_active.is_(True))
     if search:
         search_term = f"%{search.strip()}%"
         query = query.filter((User.name.ilike(search_term)) | (User.email.ilike(search_term)) | (User.employee_id.ilike(search_term)) | (User.login_id.ilike(search_term)))
@@ -99,7 +166,7 @@ def list_users(
 
 @router.get("/{user_id}")
 def view_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()  # noqa: E712
+    user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -125,7 +192,7 @@ def view_user(user_id: int, db: Session = Depends(get_db)):
 
 @router.put("/{user_id}")
 def update_user(user_id: int, payload: UpdateUser, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()  # noqa: E712
+    user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
@@ -140,7 +207,7 @@ def update_user(user_id: int, payload: UpdateUser, db: Session = Depends(get_db)
 
 @router.delete("/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()  # noqa: E712
+    user = db.query(User).filter(User.id == user_id, User.is_active.is_(True)).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 

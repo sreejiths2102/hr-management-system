@@ -62,6 +62,19 @@ export const api = {
     localStorage.removeItem('user');
   },
 
+  changePassword: async (login, currentPassword, newPassword) => {
+    const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        login,
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+    return handleResponse(res);
+  },
+
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
@@ -70,6 +83,15 @@ export const api = {
   // HR Dashboard
   getHrDashboard: async () => {
     const res = await fetch(`${API_BASE_URL}/dashboard/hr`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  // Employee Dashboard
+  getEmployeeDashboard: async () => {
+    const res = await fetch(`${API_BASE_URL}/dashboard/employee`, {
       method: 'GET',
       headers: getHeaders(),
     });
@@ -230,6 +252,24 @@ export const api = {
         headers: getHeaders(),
       }
     );
+    return handleResponse(res);
+  },
+
+  // Employee Self-Profile
+  getMyProfile: async () => {
+    const res = await fetch(`${API_BASE_URL}/users/me`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  updateMyProfile: async (data) => {
+    const res = await fetch(`${API_BASE_URL}/users/me`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
     return handleResponse(res);
   },
 };

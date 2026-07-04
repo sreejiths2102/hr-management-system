@@ -28,6 +28,13 @@ class UpdateUser(BaseModel):
     address: str | None = None
 
 
+class UpdateOwnProfile(BaseModel):
+    """Schema for employees editing their own limited fields."""
+    phone: str | None = None
+    address: str | None = None
+    profile_picture: str | None = None
+
+
 class UserListItem(BaseModel):
     id: int
     name: str

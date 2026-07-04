@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from typing import cast
 from sqlalchemy.orm import Session
 from app.db.database import Base, SessionLocal, engine
 from app.core.security import hash_password
@@ -8,6 +9,7 @@ from app.models.attendance import Attendance
 from app.models.leave_request import LeaveRequest
 from app.models.salary import Salary
 from app.services.salary_service import calculate_salary_components
+from app.services.leave_service import approve_leave
 
 def seed_database():
     # Recreate tables
@@ -20,7 +22,7 @@ def seed_database():
 
         # 1. Create a Company
         company = Company(
-            company_name="Angeleena Tech",
+            company_name="Angeleena-Technologies Limited",
             company_code="ANG",
             logo=None
         )
@@ -189,31 +191,20 @@ def seed_database():
         # 5. Create Leave Requests
         # Leave request for Alice (Approved, covering today)
         alice = seeded_employees[3]
-        alice_leave = LeaveRequest(
+        alice_leave_request = LeaveRequest(
             user_id=alice.id,
             leave_type="Sick Leave",
             start_date=today - timedelta(days=1),
             end_date=today + timedelta(days=2),
             reason="Recovering from fever",
-            status="Approved",
-            approved_by=hr_admin.id,
-            admin_comment="Get well soon!",
-            applied_at=datetime.now(timezone.utc) - timedelta(days=3),
-            decision_at=datetime.now(timezone.utc) - timedelta(days=2)
+            status="Pending", # Start as pending
+            applied_at=datetime.now(timezone.utc) - timedelta(days=3)
         )
-        db.add(alice_leave)
-        
-        # Mark Alice's attendance today as Leave
-        alice_attendance_today = Attendance(
-            user_id=alice.id,
-            date=today,
-            check_in=None,
-            check_out=None,
-            working_minutes=None,
-            status="Leave",
-            remarks="Sick Leave"
-        )
-        db.add(alice_attendance_today)
+        db.add(alice_leave_request)
+        db.flush() # Get the ID
+        # Use the service to approve the leave, which will also create the attendance records
+        leave_id = cast(int, alice_leave_request.id)
+        approve_leave(db, leave_id, hr_admin, "Get well soon!")
 
         # Pending Leave Request from Bob
         bob = seeded_employees[2]

@@ -157,10 +157,10 @@ export default function EmployeeDetailsModal({ userId, onClose, onUpdateSuccess 
 
                   <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
                     <button type="button" className="btn btn-primary" onClick={() => setIsEditing(true)}>
-                      ✏️ Edit
+                      Edit
                     </button>
                     <button type="button" className="btn btn-danger" onClick={handleDelete}>
-                      🗑️ Deactivate
+                      Deactivate
                     </button>
                   </div>
                 </>

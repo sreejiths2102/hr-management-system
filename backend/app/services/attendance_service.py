@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
-import json
 import os
 from datetime import date, datetime, timezone
 from typing import cast
@@ -14,27 +10,18 @@ from sqlalchemy.orm import Session
 from app.models.attendance import Attendance
 from app.models.leave_request import LeaveRequest
 from app.models.user import User
+from jose import JWTError, jwt
 
 
 JWT_SECRET = os.getenv("JWT_SECRET", "hrms-secret-key")
+JWT_ALGORITHM = "HS256"
 
 
 def _decode_token(token: str) -> dict:
     try:
-        header_part, payload_part, signature_part = token.split(".")
-        signing_input = f"{header_part}.{payload_part}".encode("ascii")
-        expected_signature = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
-        actual_signature = base64.urlsafe_b64decode(signature_part + "==")
-        if not hmac.compare_digest(expected_signature, actual_signature):
-            raise ValueError("Invalid signature")
-
-        payload_json = base64.urlsafe_b64decode(payload_part + "==").decode("utf-8")
-        payload = json.loads(payload_json)
-        exp = payload.get("exp")
-        if exp and datetime.now(timezone.utc).timestamp() > float(exp):
-            raise ValueError("Token expired")
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return payload
-    except Exception as exc:  # noqa: BLE001
+    except JWTError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
 
 
@@ -44,7 +31,7 @@ def get_user_from_token(db: Session, token: str) -> User:
     if user_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-    user = db.query(User).filter(User.id == int(user_id), User.is_active == True).first()  # noqa: E712
+    user = db.query(User).filter(User.id == int(user_id), User.is_active.is_(True)).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
@@ -57,30 +44,35 @@ def calculate_working_hours(check_in_time: datetime, check_out_time: datetime) -
     return f"{hours:02d}:{minutes:02d}"
 
 
-def _has_approved_leave(db: Session, user: User, target_date: date) -> bool:
-    return (
-        db.query(LeaveRequest)
-        .filter(
-            LeaveRequest.user_id == user.id,
-            LeaveRequest.status == "Approved",
-            LeaveRequest.start_date <= target_date,
-            LeaveRequest.end_date >= target_date,
-        )
-        .first()
-        is not None
-    )
+def _has_approved_leave(db: Session, user: User, target_date: date, preloaded_leave: bool | None = None) -> bool:
+    if preloaded_leave is not None:
+        return preloaded_leave
+    return (db.query(LeaveRequest).filter(
+        LeaveRequest.user_id == user.id,
+        LeaveRequest.status == "Approved",
+        LeaveRequest.start_date <= target_date,
+        LeaveRequest.end_date >= target_date,
+    ).first() is not None)
 
 
-def get_today_status(db: Session, user: User, target_date: date | None = None) -> str:
+def get_today_status(
+    db: Session,
+    user: User,
+    target_date: date | None = None,
+    preloaded_attendance: Attendance | None = None,
+    preloaded_leave: bool | None = None,
+) -> str:
     attendance_date = target_date or date.today()
-    if _has_approved_leave(db, user, attendance_date):
+    if _has_approved_leave(db, user, attendance_date, preloaded_leave=preloaded_leave):
         return "leave"
 
-    attendance = (
-        db.query(Attendance)
-        .filter(Attendance.user_id == user.id, Attendance.date == attendance_date)
-        .first()
-    )
+    attendance = preloaded_attendance
+    if attendance is None:
+        attendance = (
+            db.query(Attendance)
+            .filter(Attendance.user_id == user.id, Attendance.date == attendance_date)
+            .first()
+        )
     if attendance:
         return (attendance.status or "Present").lower().replace("half day", "half_day")
 

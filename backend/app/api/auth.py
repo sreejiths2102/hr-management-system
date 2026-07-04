@@ -1,10 +1,8 @@
-import base64
-import hashlib
-import hmac
-import json
 import os
 from datetime import datetime, timedelta, timezone
 from typing import cast
+
+from jose import jwt
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
@@ -28,20 +26,12 @@ JWT_ALGORITHM = "HS256"
 JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", "120"))
 
 
-def _base64url_encode(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
-
 def create_access_token(payload: dict) -> str:
-    header = {"alg": JWT_ALGORITHM, "typ": "JWT"}
     token_payload = payload.copy()
-    token_payload["exp"] = int((datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRES_MINUTES)).timestamp())
-
-    header_part = _base64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    payload_part = _base64url_encode(json.dumps(token_payload, separators=(",", ":")).encode("utf-8"))
-    signing_input = f"{header_part}.{payload_part}".encode("ascii")
-    signature = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
-    return f"{header_part}.{payload_part}.{_base64url_encode(signature)}"
+    expire = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRES_MINUTES)
+    token_payload["exp"] = expire
+    encoded_jwt = jwt.encode(token_payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return encoded_jwt
 
 
 def _next_employee_serial(db: Session, company_id: int) -> int:
@@ -68,8 +58,10 @@ def _find_user_by_login_or_email(db: Session, login: str) -> User | None:
 
 
 @router.get("/company/status")
-def company_status(db: Session = Depends(get_db)):
-    company_exists = db.query(Company).count() > 0
+def company_status(db: Session = Depends(get_db)) -> dict[str, bool]:
+    # Use a more efficient query that doesn't select all columns for a simple count.
+    # This avoids the UndefinedColumn error if the model and DB schema are out of sync.
+    company_exists = db.query(db.query(Company).exists()).scalar()
     return {"company_exists": company_exists}
 
 
@@ -79,8 +71,8 @@ def register_company(payload: CompanyRegister, db: Session = Depends(get_db)):
     if payload.password != payload.confirm_password:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match")
 
-    existing_company = db.query(Company).first()
-    if existing_company:
+    company_exists = db.query(db.query(Company).exists()).scalar()
+    if company_exists:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Company already registered")
 
     if db.query(User).filter(User.email == payload.email).first():
