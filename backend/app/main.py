@@ -12,9 +12,19 @@ from app.models.leave_request import LeaveRequest
 from app.models.salary import Salary
 from app.models.user import User
 
+from fastapi.middleware.cors import CORSMiddleware
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="HRMS")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router)
 app.include_router(attendance_router)

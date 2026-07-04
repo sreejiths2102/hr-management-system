@@ -1,122 +1,129 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useEffect } from 'react';
+import Login from './components/Login';
+import Sidebar from './components/Sidebar';
+import DashboardHome from './components/DashboardHome';
+import Employees from './components/Employees';
+import AttendanceManager from './components/AttendanceManager';
+import LeaveManager from './components/LeaveManager';
+import PayrollManager from './components/PayrollManager';
+import CompanySettings from './components/CompanySettings';
+import Reports from './components/Reports';
+import AddUserModal from './components/AddUserModal';
+import EmployeeDetailsModal from './components/EmployeeDetailsModal';
+import { api } from './services/api';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentTab, setCurrentTab] = useState('dashboard');
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
+  
+  // Re-fetch trigger states to communicate refreshes between components
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const user = api.getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+    }
+  }, []);
+
+  const handleLoginSuccess = (user) => {
+    setCurrentUser(user);
+    setCurrentTab('dashboard');
+  };
+
+  const handleLogout = () => {
+    api.logout();
+    setCurrentUser(null);
+  };
+
+  const triggerRefresh = () => {
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
+  if (!currentUser) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app-container">
+      {/* Sidebar Navigation */}
+      <Sidebar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+      />
 
-      <div className="ticks"></div>
+      {/* Main Content Area */}
+      <main className="main-content">
+        <header className="content-header">
+          <div className="page-title">
+            <h1 style={{ textTransform: 'capitalize' }}>
+              {currentTab === 'dashboard' ? 'Dashboard Summary' : currentTab === 'timeoff' ? 'Time Off Requests' : `${currentTab} Management`}
+            </h1>
+            <p>Welcome back, {currentUser.name}</p>
+          </div>
+        </header>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {/* Tab Router Content */}
+        <div key={refreshTrigger} style={{ flexGrow: 1 }}>
+          {currentTab === 'dashboard' && (
+            <DashboardHome
+              setCurrentTab={setCurrentTab}
+              onAddUserClick={() => setIsAddModalOpen(true)}
+              onEmployeeClick={(id) => setSelectedEmployeeId(id)}
+            />
+          )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+          {currentTab === 'employees' && (
+            <Employees
+              currentUser={currentUser}
+              onAddUserClick={() => setIsAddModalOpen(true)}
+              onEmployeeClick={(id) => setSelectedEmployeeId(id)}
+            />
+          )}
+
+          {currentTab === 'attendance' && (
+            <AttendanceManager currentUser={currentUser} />
+          )}
+
+          {currentTab === 'timeoff' && (
+            <LeaveManager currentUser={currentUser} />
+          )}
+
+          {currentTab === 'payroll' && (
+            <PayrollManager currentUser={currentUser} />
+          )}
+
+          {currentTab === 'reports' && (
+            <Reports currentUser={currentUser} />
+          )}
+
+          {currentTab === 'settings' && (
+            <CompanySettings currentUser={currentUser} />
+          )}
+        </div>
+      </main>
+
+      {/* Modals and Overlays */}
+      {isAddModalOpen && (
+        <AddUserModal
+          currentUser={currentUser}
+          onClose={() => setIsAddModalOpen(false)}
+          onSuccess={triggerRefresh}
+        />
+      )}
+
+      {selectedEmployeeId && (
+        <EmployeeDetailsModal
+          userId={selectedEmployeeId}
+          onClose={() => setSelectedEmployeeId(null)}
+          onUpdateSuccess={triggerRefresh}
+        />
+      )}
+    </div>
+  );
 }
-
-export default App
