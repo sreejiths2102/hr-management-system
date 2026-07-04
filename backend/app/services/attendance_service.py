@@ -116,7 +116,7 @@ def create_check_in(db: Session, user: User) -> Attendance:
     return attendance
 
 
-def create_check_out(db: Session, user: User) -> Attendance:
+def create_check_out(db: Session, user: User, break_minutes: int | None = None) -> Attendance:
     today = date.today()
     attendance = (
         db.query(Attendance)
@@ -133,8 +133,14 @@ def create_check_out(db: Session, user: User) -> Attendance:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already checked out")
 
     check_out_time = datetime.now(timezone.utc)
+    total_minutes = int((check_out_time - check_in_time).total_seconds() // 60)
+    effective_break = abs(break_minutes) if break_minutes is not None else 0
+    working_minutes = max(0, total_minutes - effective_break)
+
     setattr(attendance, "check_out", check_out_time)
-    setattr(attendance, "working_minutes", int((check_out_time - check_in_time).total_seconds() // 60))
+    setattr(attendance, "working_minutes", working_minutes)
+    if break_minutes is not None:
+        setattr(attendance, "remarks", f"Break {effective_break} min")
     db.commit()
     db.refresh(attendance)
     return attendance
@@ -153,8 +159,12 @@ def mark_leave_attendance(db: Session, leave_request: LeaveRequest) -> None:
             .filter(Attendance.user_id == user.id, Attendance.date == current_date)
             .first()
         )
+        leave_status = "Leave"
+        if "unpaid" in str(leave_request.leave_type).lower():
+            leave_status = "Unpaid Leave"
+
         if attendance:
-            setattr(attendance, "status", "Leave")
+            setattr(attendance, "status", leave_status)
             setattr(attendance, "remarks", leave_request.reason or leave_request.leave_type)
         else:
             attendance = Attendance(
@@ -163,7 +173,7 @@ def mark_leave_attendance(db: Session, leave_request: LeaveRequest) -> None:
                 check_in=None,
                 check_out=None,
                 working_minutes=None,
-                status="Leave",
+                status=leave_status,
                 remarks=leave_request.reason or leave_request.leave_type,
             )
             db.add(attendance)

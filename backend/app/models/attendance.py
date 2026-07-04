@@ -17,4 +17,3 @@ class Attendance(Base):
     status = Column(String(20), nullable=False, default="Present")
     remarks = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    status = Column(String(20), nullable=False, default="present")

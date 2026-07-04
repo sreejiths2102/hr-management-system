@@ -67,6 +67,12 @@ def _find_user_by_login_or_email(db: Session, login: str) -> User | None:
     )
 
 
+@router.get("/company/status")
+def company_status(db: Session = Depends(get_db)):
+    company_exists = db.query(Company).count() > 0
+    return {"company_exists": company_exists}
+
+
 @router.post("/register")
 @router.post("/register-company")
 def register_company(payload: CompanyRegister, db: Session = Depends(get_db)):
