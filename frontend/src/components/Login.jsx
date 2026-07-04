@@ -190,7 +190,7 @@ export default function Login({ onLoginSuccess }) {
               disabled={resetting}
               style={{ marginTop: '8px' }}
             >
-            {resetting ? 'Updating Password...' : 'Set New Password & Continue'}
+              {resetting ? 'Updating Password...' : 'Set New Password & Continue'}
             </button>
           </form>
         </div>
@@ -271,12 +271,7 @@ export default function Login({ onLoginSuccess }) {
             <button type="submit" className="btn btn-primary btn-block">
               Log In
             </button>
-            <div className="auth-toggle">
-              Need a company account?{' '}
-              <span className="auth-toggle-link" onClick={() => setIsRegistering(true)}>
-                Register Company
-              </span>
-            </div>
+
           </form>
         ) : (
           <form onSubmit={handleRegisterSubmit}>

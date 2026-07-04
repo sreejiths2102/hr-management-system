@@ -62,6 +62,10 @@ def get_today_status(
     preloaded_attendance: Attendance | None = None,
     preloaded_leave: bool | None = None,
 ) -> str:
+    # HR / company admin is always counted as Present
+    if getattr(user, "role") == "hr" or getattr(user, "is_company_admin"):
+        return "present"
+
     attendance_date = target_date or date.today()
     if _has_approved_leave(db, user, attendance_date, preloaded_leave=preloaded_leave):
         return "leave"

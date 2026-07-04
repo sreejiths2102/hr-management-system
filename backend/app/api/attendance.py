@@ -178,9 +178,19 @@ def list_all_attendance(authorization: str | None = Header(default=None, alias="
         db.query(Attendance)
         .join(User, User.id == Attendance.user_id)
         .filter(User.company_id == user.company_id)
-        .order_by(Attendance.date.desc())
+        .order_by(Attendance.date.desc(), Attendance.id.desc())
         .all()
     )
+
+    # Deduplicate: for each (user_id, date) keep only the latest record (highest id)
+    seen: set[tuple] = set()
+    unique_records = []
+    for record in records:
+        key = (record.user_id, record.date)
+        if key not in seen:
+            seen.add(key)
+            unique_records.append(record)
+
     return [
         {
             "user_id": record.user_id,
@@ -191,5 +201,6 @@ def list_all_attendance(authorization: str | None = Header(default=None, alias="
             "status": record.status,
             "remarks": record.remarks,
         }
-        for record in records
+        for record in unique_records
     ]
+
